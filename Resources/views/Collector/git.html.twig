@@ -3,83 +3,72 @@
 {% block toolbar %}
 
     {% if collector.gitData %}
-        <div class="sf-toolbar-block">
-            <div class="sf-toolbar-icon">
-                <a href="#">
-                    {# style needs this img #}
-                    {{ include("@SymfonyDebugToolbarGit/Icons/git.svg.twig") }}
-                    <span class="sf-toolbar-status sf-toolbar-status-green">{{ collector.branch }}</span>
-                <span class="sf-toolbar-status sf-toolbar-status{%
-                if collector.timeCommitIntervalMinutes <= 30%}-green{% elseif collector.timeCommitIntervalMinutes > 60 %}-red{% endif
-                %}">
-                    {% if (collector.timeCommitIntervalMinutes) > 60*24*30 %}
-                        {# more than one month : run away #}
-                        {%  set month = collector.timeCommitIntervalMinutes//(60*24*30) %}
-                        +{{ month }}month{% if month>1 %}s{%  endif  %}
-                    {% elseif (collector.timeCommitIntervalMinutes) > 60*24 %}
-                        {# more than one day #}
-                        +{{ collector.timeCommitIntervalMinutes//(60*24) }}d
-                    {% elseif (collector.timeCommitIntervalMinutes) > 60 %}
-                        {# more than one hour #}
-                        +{{ collector.timeCommitIntervalMinutes//60 }}h
+
+        {% set icon %}
+            <a href="#">
+                {{ include("@KendrickSymfonyDebugToolbarGit/Icons/git.svg.twig") }}
+                <span class="sf-toolbar-status sf-toolbar-status-green">{{ collector.branch }}</span>
+                <span class="sf-toolbar-status sf-toolbar-status
+                    {% if collector.timeCommitIntervalMinutes <= 30 %}
+                        -green
+                    {% elseif collector.timeCommitIntervalMinutes > 60 %}
+                        -red
+                    {% endif %}">
+                    {% if collector.timeCommitIntervalMinutes > 60 * 24 * 30 %}
+                        {% set month = collector.timeCommitIntervalMinutes // (60 * 24 * 30) %}
+                        +{{ month }}month{% if month > 1 %}s{% endif %}
+                    {% elseif collector.timeCommitIntervalMinutes > 60 * 24 %}
+                        +{{ collector.timeCommitIntervalMinutes // (60 * 24) }}d
+                    {% elseif collector.timeCommitIntervalMinutes > 60 %}
+                        +{{ collector.timeCommitIntervalMinutes // 60 }}h
                     {% else %}
-                        {# less than one hour #}
                         {{ collector.timeCommitIntervalMinutes }}m{{ collector.timeCommitIntervalSeconds }}s
                     {% endif %}
                 </span>
-                </a>
-            </div>
-            <div class="sf-toolbar-info" style="max-width:300px">
-                {% if collector.commit %}
-                    <div class="sf-toolbar-info-piece">
-                        {% if collector.commiturl %}
-                            <a href="{{ collector.commiturl }}{{ collector.commit }}" target="_blank">{{ collector.commit[:7] }}</a>
-                        {% else %}
-                            {{ collector.commit }}
-                        {% endif %}
-                    </div>
-                    {% if collector.merge %}
-                        <div class="sf-toolbar-info-piece">
-                            <b>Merge</b> <span class="sf-toolbar-status sf-toolbar-status-green">{{ collector.merge }}</span>
-                        </div>
-                    {% endif %}
+            </a>
+        {% endset %}
 
+        {% set text %}
+            {% if collector.commit %}
+                <div class="sf-toolbar-info-piece">
+                    {% if collector.commiturl %}
+                        <a href="{{ collector.commiturl }}{{ collector.commit }}" target="_blank">{{ collector.commit[:7] }}</a>
+                    {% else %}
+                        {{ collector.commit }}
+                    {% endif %}
+                </div>
+                {% if collector.merge %}
                     <div class="sf-toolbar-info-piece">
-                        <b>{{ collector.author }}</b>
+                        <b>Merge</b> <span class="sf-toolbar-status sf-toolbar-status-green">{{ collector.merge }}</span>
                     </div>
-
-                    {% if collector.email %}
-                        <div class="sf-toolbar-info-piece">
-                            <a href="mailto:{{ collector.email }}">{{ collector.email }}</a>
-                        </div>
-                    {% endif %}
-                    {% if collector.date %}
-                        <div class="sf-toolbar-info-piece">
-                            <b>{{ collector.date|date("d-m-Y H:i:s") }}</b>
-                        </div>
-                    {% endif %}
-                    {% if collector.message %}
-                        <div class="sf-toolbar-info-piece">
-                            <div style="white-space:normal">
-                                {{ collector.message }}
-                            </div>
-                        </div>
-                    {% endif %}
                 {% endif %}
-            </div>
-        </div>
+                <div class="sf-toolbar-info-piece">
+                    <b>{{ collector.author }}</b>
+                </div>
+                {% if collector.email %}
+                    <div class="sf-toolbar-info-piece">
+                        <a href="mailto:{{ collector.email }}">{{ collector.email }}</a>
+                    </div>
+                {% endif %}
+                {% if collector.date %}
+                    <div class="sf-toolbar-info-piece">
+                        <b>{{ collector.date|date("d-m-Y H:i:s") }}</b>
+                    </div>
+                {% endif %}
+                {% if collector.message %}
+                    <div class="sf-toolbar-info-piece" style="white-space:normal">
+                        {{ collector.message }}
+                    </div>
+                {% endif %}
+            {% endif %}
+        {% endset %}
+
+        {{ include('@WebProfiler/Profiler/toolbar_item.html.twig', {
+            link: false,
+            icon: icon,
+            text: text
+        }) }}
+
     {% endif %}
-
-{% endblock %}
-
-{% block head %}
-
-{% endblock %}
-
-{% block menu %}
-
-{% endblock %}
-
-{% block panel %}
 
 {% endblock %}

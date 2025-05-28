@@ -1,10 +1,11 @@
 <?php
+
 namespace Kendrick\SymfonyDebugToolbarGit\DataCollector;
 
-use Symfony\Component\HttpKernel\DataCollector\DataCollector;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Filesystem\Filesystem;
+use Symfony\Component\HttpKernel\DataCollector\DataCollector;
 
 /**
  * Class GitDataCollector
@@ -13,323 +14,316 @@ use Symfony\Component\Filesystem\Filesystem;
 class GitDataCollector extends DataCollector
 {
 
-	/**
-	 * @param $repositoryCommitUrl
-	 */
-	public function __construct($repositoryCommitUrl)
-	{
-		$this->data['repositoryCommitUrl'] = $repositoryCommitUrl;
-	}
+    /**
+     * @param $repositoryCommitUrl
+     */
+    public function __construct($repositoryCommitUrl)
+    {
+        $this->data['repositoryCommitUrl'] = $repositoryCommitUrl;
+    }
 
-	/**
-         * {@inheritdoc}
-         */
-	public function reset()
-	{
-		$this->data = [];
-	}
+    /**
+     * {@inheritdoc}
+     */
+    public function reset()
+    {
+        $this->data = [];
+    }
 
-	/**
-	 * Collect Git data for DebugBar (branch,commit,author,email,merge,date,message)
-	 *
-	 * @param Request $request
-	 * @param Response $response
-	 * @param \Exception $exception
-	 */
-	public function collect(Request $request, Response $response, \Exception $exception = null)
-	{
+    /**
+     * Collect Git data for DebugBar (branch,commit,author,email,merge,date,message)
+     *
+     * @param Request $request
+     * @param Response $response
+     * @param \Exception $exception
+     */
+    public function collect(Request $request, Response $response, \Exception $exception = null)
+    {
+        $fs = new Filesystem();
 
-		$fs = new Filesystem();
+        // unit tests
+        $gitPath = __DIR__ . '/../../../../.git';
 
-		// is there a web directory ?
+        // if there is no .git directory
+        if (!$fs->exists($gitPath)) {
+            $this->data['gitData'] = false;
+            return;
+        }
 
-		if ($fs->exists('../web') || $fs->exists('../public_html') || $fs->exists('../public')) {
-			$gitPath = '../.git';
-		} else {
-			// unit tests
-			$gitPath = '.git';
-		}
+        $repoPath = realpath($gitPath) . '/../';
 
-		// if there is no .git directory
-		if (!$fs->exists($gitPath)) {
-			$this->data['gitData'] = false;
-			return;
-		}
+        // get latest commit information
+        exec("cd $repoPath && git log -1", $data);
 
-		// get latest commit information
-		exec("git log -1", $data);
+        if (isset($data) && !empty($data)) {
 
-		if (isset($data) && !empty($data)) {
+            // there is some information
+            $this->data['gitData'] = true;
 
-			// there is some information
-			$this->data['gitData'] = true;
+            foreach ($data as $d) {
 
-			foreach ($data as $d) {
+                if (strpos($d, 'commit') === 0) {
 
-				if (strpos($d, 'commit') === 0) {
+                    // commit Id
 
-					// commit Id
+                    $this->data['commit'] = substr($d, 7);
 
-					$this->data['commit'] = substr($d, 7);
+                } elseif (strpos($d, 'Author') === 0) {
 
-				} elseif (strpos($d, 'Author') === 0) {
+                    // author and email
 
-					// author and email
+                    preg_match('$Author: ([^<]+)<(.+)>$', $d, $author);
 
-					preg_match('$Author: ([^<]+)<(.+)>$', $d, $author);
+                    if (isset($author[1])) {
+                        $this->data['author'] = trim($author[1]);
+                    }
+                    if (isset($author[2])) {
+                        $this->data['email'] = $author[2];
+                    }
 
-					if (isset($author[1])) {
-						$this->data['author'] = trim($author[1]);
-					}
-					if (isset($author[2])) {
-						$this->data['email'] = $author[2];
-					}
+                } elseif (strpos($d, 'Date') === 0) {
 
-				} elseif (strpos($d, 'Date') === 0) {
+                    $date = trim(substr($d, 5)); // ddd mmm n hh:mm:ss yyyy +gmt
 
-					$date = trim(substr($d, 5)); // ddd mmm n hh:mm:ss yyyy +gmt
+                    // date of commit
+                    $dateCommit = date_create($date);
 
-					// date of commit
-					$dateCommit = date_create($date);
+                    // actual date at runtime
+                    $dateRuntime = new \DateTime();
+                    $dateNow = date_create($dateRuntime->format('Y-m-d H:i:s'));
 
-					// actual date at runtime
-					$dateRuntime = new \DateTime();
-					$dateNow = date_create($dateRuntime->format('Y-m-d H:i:s'));
+                    // difference
+                    $time = date_diff($dateCommit, $dateNow);
 
-					// difference
-					$time = date_diff($dateCommit, $dateNow);
+                    // static time difference : minutes and seconds
+                    $this->data['timeCommitIntervalMinutes'] = $time->format('%y')*365*24*60+$time->format('%m')*30*24*60+$time->format('%d')*24*60+$time->format('%h')*60+$time->format('%i');
+                    $this->data['timeCommitIntervalSeconds'] = $time->format('%s');
 
-					// static time difference : minutes and seconds
-					$this->data['timeCommitIntervalMinutes'] = $time->format('%y')*365*24*60+$time->format('%m')*30*24*60+$time->format('%d')*24*60+$time->format('%h')*60+$time->format('%i');
-					$this->data['timeCommitIntervalSeconds'] = $time->format('%s');
+                    // full readable date
+                    $this->data['date'] = $date;
 
-					// full readable date
-					$this->data['date'] = $date;
+                } elseif (strpos($d, 'Merge') === 0) {
 
-				} elseif (strpos($d, 'Merge') === 0) {
+                    // merge information
 
-					// merge information
+                    $this->data['merge'] = trim(substr($d, 6));
 
-					$this->data['merge'] = trim(substr($d, 6));
+                } else {
 
-				} else {
+                    // commit message
 
-					// commit message
+                    $this->data['message'] = trim($d);
 
-					$this->data['message'] = trim($d);
+                }
 
-				}
+            }
 
-			}
+            unset($data);
 
-			unset($data);
+            exec("cd $repoPath && git status", $data);
 
-			exec("git status", $data);
+            if (isset($data[0])) {
 
-			if (isset($data[0])) {
+                if (strstr($data[0], 'On branch')) {
 
-				if (strstr($data[0], 'On branch')) {
+                    // branch name
+                    $this->data['branch'] = trim(substr($data[0], strpos($data[0], 'On branch')+9));
 
-					// branch name
+                }
+            }
 
-					$this->data['branch'] = trim(substr($data[0], strpos($data[0], 'On branch')+9));
+        } else {
 
-				}
-			}
+            // no git data
 
-		} else {
+            $this->data['gitData'] = false;
 
-			// no git data
+        }
 
-			$this->data['gitData'] = false;
+    }
 
-		}
+    /**
+     * true if there is some data : used by the view
+     *
+     * @return string
+     */
+    public function getGitData()
+    {
 
+        return $this->getData('gitData');
 
-	}
+    }
 
-	/**
-	 * true if there is some data : used by the view
-	 *
-	 * @return string
-	 */
-	public function getGitData()
-	{
+    /**
+     * Actual branch name
+     *
+     * @return string
+     */
+    public function getBranch()
+    {
 
-		return $this->getData('gitData');
+        return $this->getData('branch');
 
-	}
+    }
 
-	/**
-	 * Actual branch name
-	 *
-	 * @return string
-	 */
-	public function getBranch()
-	{
+    /**
+     * Commit ID
+     *
+     * @return string
+     */
+    public function getCommit()
+    {
 
-		return $this->getData('branch');
+        return $this->getData('commit');
 
-	}
+    }
 
-	/**
-	 * Commit ID
-	 *
-	 * @return string
-	 */
-	public function getCommit()
-	{
+    /**
+     * Merge information
+     *
+     * @return string
+     */
+    public function getMerge()
+    {
 
-		return $this->getData('commit');
+        return $this->getData('merge');
 
-	}
+    }
 
-	/**
-	 * Merge information
-	 *
-	 * @return string
-	 */
-	public function getMerge()
-	{
+    /**
+     * Author
+     *
+     * @return string
+     */
+    public function getAuthor()
+    {
 
-		return $this->getData('merge');
+        return $this->getData('author');
 
-	}
+    }
 
-	/**
-	 * Author
-	 *
-	 * @return string
-	 */
-	public function getAuthor()
-	{
+    /**
+     * Author's email
+     *
+     * @return string
+     */
+    public function getEmail()
+    {
 
-		return $this->getData('author');
+        return $this->getData('email');
 
-	}
+    }
 
-	/**
-	 * Author's email
-	 *
-	 * @return string
-	 */
-	public function getEmail()
-	{
+    /**
+     * Commit date
+     *
+     * @return string
+     */
+    public function getDate()
+    {
 
-		return $this->getData('email');
+        return $this->getData('date');
 
-	}
+    }
 
-	/**
-	 * Commit date
-	 *
-	 * @return string
-	 */
-	public function getDate()
-	{
+    /**
+     * Minutes since last commit
+     *
+     * @return string
+     */
+    public function getTimeCommitIntervalMinutes()
+    {
 
-		return $this->getData('date');
+        return $this->getData('timeCommitIntervalMinutes');
 
-	}
+    }
 
-	/**
-	 * Minutes since last commit
-	 *
-	 * @return string
-	 */
-	public function getTimeCommitIntervalMinutes()
-	{
+    /**
+     * Seconds since latest commit
+     *
+     * @return string
+     */
+    public function getTimeCommitIntervalSeconds()
+    {
 
-		return $this->getData('timeCommitIntervalMinutes');
+        return $this->getData('timeCommitIntervalSeconds');
 
-	}
+    }
 
-	/**
-	 * Seconds since latest commit
-	 *
-	 * @return string
-	 */
-	public function getTimeCommitIntervalSeconds()
-	{
+    /**
+     * Commit message
+     *
+     * @return string
+     */
+    public function getMessage()
+    {
 
-		return $this->getData('timeCommitIntervalSeconds');
+        return $this->getData('message');
 
-	}
+    }
 
-	/**
-	 * Commit message
-	 *
-	 * @return string
-	 */
-	public function getMessage()
-	{
+    /**
+     * Commit URL
+     *
+     * @return string
+     */
+    public function getCommitUrl()
+    {
 
-		return $this->getData('message');
+        return $this->data['repositoryCommitUrl'];
 
-	}
+    }
 
-	/**
-	 * Commit URL
-	 *
-	 * @return string
-	 */
-	public function getCommitUrl()
-	{
+    /**
+     * Checks and returns the data
+     *
+     * @param string $data
+     * @return string
+     */
+    private function getData($data)
+    {
 
-		return $this->data['repositoryCommitUrl'];
+        return (isset($this->data[$data])) ? $this->data[$data] : '';
 
-	}
+    }
 
-	/**
-	 * Checks and returns the data
-	 *
-	 * @param string $data
-	 * @return string
-	 */
-	private function getData($data)
-	{
+    /**
+     * DataCollector name : used by service declaration into container.yml
+     *
+     * @return string
+     */
+    public function getName()
+    {
 
-		return (isset($this->data[$data])) ? $this->data[$data] : '';
+        return 'datacollector_git';
 
-	}
+    }
 
-	/**
-	 * DataCollector name : used by service declaration into container.yml
-	 *
-	 * @return string
-	 */
-	public function getName()
-	{
+    /**
+     * change the icon color depending on the kernel version
+     *
+     * #3f3f3f < 2.8
+     * #AAAAAA >= 2.8
+     *
+     * @return string
+     */
+    final public function getIconColor()
+    {
+        if ((float) $this->getSymfonyVersion() >= 2.8) {
+            return $this->data['iconColor'] = '#AAAAAA';
+        }
+        return $this->data['iconColor'] = '#3F3F3F';
+    }
 
-		return 'data-collector_git';
-
-	}
-
-	/**
-	 * change the icon color depending on the kernel version
-	 *
-	 * #3f3f3f < 2.8
-	 * #AAAAAA >= 2.8
-	 *
-	 * @return string
-	 */
-	final public function getIconColor()
-	{
-		if ((float) $this->getSymfonyVersion() >= 2.8) {
-			return $this->data['iconColor'] = '#AAAAAA';
-		}
-		return $this->data['iconColor'] = '#3F3F3F';
-	}
-
-	/**
-	 * @return string
-	 */
-	private function getSymfonyVersion()
-	{
-		$symfonyVersion = \Symfony\Component\HttpKernel\Kernel::VERSION;
-		$symfonyVersion = explode('.', $symfonyVersion, -1);
-		$symfonyMajorMinorVersion = implode('.', $symfonyVersion);
-		return $symfonyMajorMinorVersion;
-	}
+    /**
+     * @return string
+     */
+    private function getSymfonyVersion()
+    {
+        $symfonyVersion = \Symfony\Component\HttpKernel\Kernel::VERSION;
+        $symfonyVersion = explode('.', $symfonyVersion, -1);
+        $symfonyMajorMinorVersion = implode('.', $symfonyVersion);
+        return $symfonyMajorMinorVersion;
+    }
 
 }

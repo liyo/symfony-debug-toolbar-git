@@ -2,7 +2,7 @@
   "name": "kendrick/symfony-debug-toolbar-git",
   "type": "symfony-bundle",
   "description": "Git information into Symfony Debug Toolbar",
-  "keywords": ["symfony","debug","git"],
+  "keywords": ["symfony", "debug", "git"],
   "homepage": "https://github.com/kendrick-k/symfony-debug-toolbar-git",
   "license": "MIT",
   "authors": [
@@ -11,16 +11,17 @@
     }
   ],
   "require": {
-    "symfony/framework-bundle": ">=2.3",
-    "symfony/twig-bundle": ">=2.0",
-    "twig/twig": ">=1.6"
+    "php": "^7.4",
+    "symfony/framework-bundle": "^4.4",
+    "symfony/twig-bundle": "^4.4",
+    "twig/twig": "^2.0 || ^3.0"
   },
   "require-dev": {
-    "phpunit/phpunit": "6.*"
+    "phpunit/phpunit": "^7.5 || ^8.0"
   },
   "autoload": {
     "psr-4": {
-      "Kendrick\\SymfonyDebugToolbarGit\\": "."
+      "Kendrick\\SymfonyDebugToolbarGit\\": ""
     }
   }
 }

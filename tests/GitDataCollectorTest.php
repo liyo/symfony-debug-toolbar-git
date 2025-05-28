@@ -1,10 +1,10 @@
 <?php
 
-	use Kendrick\SymfonyDebugToolbarGit\DataCollector\GitDataCollector;
-	use Symfony\Component\HttpFoundation\Request;
-	use Symfony\Component\HttpFoundation\Response;
+use Kendrick\SymfonyDebugToolbarGit\DataCollector\GitDataCollector;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
-	/**
+/**
 	 * Class GitDataCollectorTest
 	 */
 	class GitDataCollectorTest extends \PHPUnit_Framework_TestCase
